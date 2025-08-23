@@ -8,9 +8,11 @@ services:
       - .:/var/www/html:rw
     working_dir: /var/www/html
     ports:
-      - 6006:6006
       - 8080:8080
     environment:
+      APP_ENV: local
+      APP_DEBUG: true
+      DB_CONNECTION: mysql
       DB_HOST: mysql
       DB_PORT: 3306
       DB_DATABASE: minimeet_core
