@@ -1,0 +1,1 @@
+- Always run commands in Docker containers. The dependencies are not installed on the host. Only inside containers
