@@ -1,12 +1,14 @@
 <?php
 
-namespace Tests\Feature;
+namespace Feature\Tenant;
 
 // use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-class ExampleTest extends TestCase
+class ExampleTenantTest extends TestCase
 {
+    protected $tenancy = true;
+
     /**
      * A basic test example.
      */

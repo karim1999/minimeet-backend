@@ -3,7 +3,7 @@
 namespace Tests;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
-use Stancl\Tenancy\Database\Models\Tenant;
+use App\Models\Tenant;
 
 abstract class TestCase extends BaseTestCase
 {

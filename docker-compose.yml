@@ -20,7 +20,7 @@ services:
       DB_HOST: mysql
       DB_PORT: 3306
       DB_DATABASE: minimeet_core
-      DB_USERNAME: minimeet
+      DB_USERNAME: root
       DB_PASSWORD: password
       FILAMENT_FILESYSTEM_DISK: s3
       FILESYSTEM_DRIVER: s3
