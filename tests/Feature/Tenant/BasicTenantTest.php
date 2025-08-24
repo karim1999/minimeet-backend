@@ -10,7 +10,7 @@ class BasicTenantTest extends TestCase
 
     public function test_routes_are_working(): void
     {
-        $response = $this->getJson('tenant');
+        $response = $this->getJson('/');
         $response->assertStatus(200);
     }
 }
