@@ -17,17 +17,21 @@ class AuthTest extends TestCase
         $response = $this->postJson('/api/v1/register', [
             'name' => 'John Doe',
             'email' => "john-{$uniqueId}@example.com",
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'password' => 'StrongPassword246!',
+            'password_confirmation' => 'StrongPassword246!',
             'company_name' => 'Acme Corp',
             'domain' => "acme-test-{$uniqueId}",
         ]);
 
         $response->assertStatus(201)
             ->assertJsonStructure([
+                'success',
                 'message',
-                'user' => ['id', 'name', 'email'],
-                'tenant' => ['id', 'company_name', 'domain'],
+                'data' => [
+                    'user' => ['id', 'name', 'email'],
+                    'tenant' => ['id', 'company_name', 'domain'],
+                ],
+                'meta' => ['timestamp', 'version'],
             ]);
 
         $this->assertDatabaseHas('users', [
@@ -39,18 +43,22 @@ class AuthTest extends TestCase
     {
         $user = User::factory()->create([
             'email' => 'test-login@example.com',
-            'password' => bcrypt('password123'),
+            'password' => bcrypt('TestPassword123!'),
         ]);
 
         $response = $this->postJson('/api/v1/login', [
             'email' => 'test-login@example.com',
-            'password' => 'password123',
+            'password' => 'TestPassword123!',
         ]);
 
         $response->assertStatus(200)
             ->assertJsonStructure([
-                'user' => ['id', 'name', 'email'],
+                'success',
                 'message',
+                'data' => [
+                    'user' => ['id', 'name', 'email'],
+                ],
+                'meta' => ['timestamp', 'version'],
             ]);
     }
 
@@ -62,7 +70,12 @@ class AuthTest extends TestCase
         ]);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['email']);
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'errors' => ['email'],
+                'meta' => ['timestamp', 'error_code'],
+            ]);
     }
 
     public function test_central_authenticated_user_can_access_protected_routes(): void
@@ -74,7 +87,12 @@ class AuthTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonStructure([
-                'user' => ['id', 'name', 'email'],
+                'success',
+                'message',
+                'data' => [
+                    'user' => ['id', 'name', 'email'],
+                ],
+                'meta' => ['timestamp', 'version'],
             ]);
     }
 
@@ -86,6 +104,12 @@ class AuthTest extends TestCase
             ->postJson('/api/v1/logout');
 
         $response->assertStatus(200)
-            ->assertJson(['message' => 'Logged out successfully']);
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'data',
+                'meta' => ['timestamp', 'version'],
+            ])
+            ->assertJson(['success' => true, 'message' => 'Logged out successfully']);
     }
 }

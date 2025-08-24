@@ -48,6 +48,10 @@ return [
             'driver' => 'sanctum',
             'provider' => 'tenant_users',
         ],
+        'central_sanctum' => [
+            'driver' => 'sanctum',
+            'provider' => 'central_users',
+        ],
     ],
 
     /*
@@ -136,5 +140,22 @@ return [
     */
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Login Attempt Settings
+    |--------------------------------------------------------------------------
+    |
+    | These options control the behavior of login attempt tracking and lockout
+    | mechanisms. Users will be locked out after exceeding max_attempts within
+    | the specified time window.
+    |
+    */
+
+    'login_attempts' => [
+        'max_attempts' => env('AUTH_MAX_LOGIN_ATTEMPTS', 5),
+        'lockout_minutes' => env('AUTH_LOCKOUT_MINUTES', 15),
+        'track_attempts' => env('AUTH_TRACK_ATTEMPTS', true),
+    ],
 
 ];

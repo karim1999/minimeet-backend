@@ -15,18 +15,22 @@ class SimpleCentralAuthTest extends TestCase
         // Test login
         $user = User::factory()->create([
             'email' => 'central@test.com',
-            'password' => bcrypt('password123'),
+            'password' => bcrypt('TestPassword456!'),
         ]);
 
         $loginResponse = $this->postJson('http://localhost/api/v1/login', [
             'email' => 'central@test.com',
-            'password' => 'password123',
+            'password' => 'TestPassword456!',
         ]);
 
         $loginResponse->assertStatus(200)
             ->assertJsonStructure([
-                'user' => ['id', 'name', 'email'],
+                'success',
                 'message',
+                'data' => [
+                    'user' => ['id', 'name', 'email'],
+                ],
+                'meta' => ['timestamp', 'version'],
             ]);
 
         // Test user endpoint
@@ -35,7 +39,12 @@ class SimpleCentralAuthTest extends TestCase
 
         $userResponse->assertStatus(200)
             ->assertJsonStructure([
-                'user' => ['id', 'name', 'email'],
+                'success',
+                'message',
+                'data' => [
+                    'user' => ['id', 'name', 'email'],
+                ],
+                'meta' => ['timestamp', 'version'],
             ]);
 
         // Test logout
@@ -43,7 +52,13 @@ class SimpleCentralAuthTest extends TestCase
             ->postJson('http://localhost/api/v1/logout');
 
         $logoutResponse->assertStatus(200)
-            ->assertJson(['message' => 'Logged out successfully']);
+            ->assertJsonStructure([
+                'success',
+                'message',
+                'data',
+                'meta' => ['timestamp', 'version'],
+            ])
+            ->assertJson(['success' => true, 'message' => 'Logged out successfully']);
     }
 
     public function test_central_login_validation(): void
