@@ -45,9 +45,13 @@ abstract class TestCase extends BaseTestCase
         ]);
 
         $domain = $tenant->domains()->create([
-            'domain' => 'testing',
+            'domain' => 'testing.localhost',
         ]);
 
         tenancy()->initialize($tenant);
+
+        // Set the app URL to match the tenant domain
+        config(['app.url' => 'http://testing.localhost']);
+        \URL::useOrigin(config('app.url'));
     }
 }
