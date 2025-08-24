@@ -18,9 +18,35 @@ abstract class TestCase extends BaseTestCase
         }
     }
 
+    public function tearDown(): void
+    {
+        if ($this->tenancy) {
+            tenancy()->end();
+        } else {
+            // Clean up any tenants created during central tests
+            Tenant::where('id', '!=', 'testing')->each(function ($tenant) {
+                $tenant->delete();
+            });;
+        }
+
+        parent::tearDown();
+    }
+
     public function initializeTenancy()
     {
-        $tenant = Tenant::create();
+        // Remove existing tenant with the same name if it exists
+        $existingTenant = Tenant::where('id', 'testing')->first();
+        if ($existingTenant) {
+            $existingTenant->delete();
+        }
+
+        $tenant = Tenant::create([
+            'id' => 'testing'
+        ]);
+
+        $domain = $tenant->domains()->create([
+            'domain' => 'testing',
+        ]);
 
         tenancy()->initialize($tenant);
     }

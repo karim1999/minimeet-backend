@@ -4,13 +4,16 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -44,5 +47,36 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function isCentralUser(): bool
+    {
+        return $this->getConnectionName() === 'central';
+    }
+
+    public function isTenantUser(): bool
+    {
+        return ! $this->isCentralUser();
+    }
+
+    public function ownedTenants(): HasMany
+    {
+        return $this->hasMany(\App\Models\Tenant::class, 'owner_id');
+    }
+
+    public function createTenantToken(string $name, array $abilities = ['*']): PersonalAccessToken
+    {
+        $tenantId = tenant('id');
+
+        if (! $tenantId) {
+            throw new \Exception('Cannot create tenant token outside of tenant context');
+        }
+
+        $tenantAbilities = array_map(
+            fn ($ability) => "tenant:$tenantId:$ability",
+            $abilities
+        );
+
+        return $this->createToken($name, $tenantAbilities);
     }
 }
