@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Central;
 
-use App\Models\User;
+use App\Models\Central\CentralUser;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
@@ -41,13 +41,13 @@ class AuthTest extends TestCase
 
     public function test_central_user_can_login(): void
     {
-        $user = User::factory()->create([
-            'email' => 'test-login@example.com',
+        $user = CentralUser::factory()->create([
+            'email' => 'test-login-' . uniqid() . '@example.com',
             'password' => bcrypt('TestPassword123!'),
         ]);
 
         $response = $this->postJson('/api/v1/login', [
-            'email' => 'test-login@example.com',
+            'email' => $user->email,
             'password' => 'TestPassword123!',
         ]);
 
@@ -80,7 +80,7 @@ class AuthTest extends TestCase
 
     public function test_central_authenticated_user_can_access_protected_routes(): void
     {
-        $user = User::factory()->create();
+        $user = CentralUser::factory()->create();
 
         $response = $this->actingAs($user, 'web')
             ->getJson('/api/v1/user');
@@ -98,7 +98,7 @@ class AuthTest extends TestCase
 
     public function test_central_user_can_logout(): void
     {
-        $user = User::factory()->create();
+        $user = CentralUser::factory()->create();
 
         $response = $this->actingAs($user, 'web')
             ->postJson('/api/v1/logout');

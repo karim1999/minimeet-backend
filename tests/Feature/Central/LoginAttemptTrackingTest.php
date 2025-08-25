@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Central;
 
-use App\Models\User;
+use App\Models\Central\CentralUser;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
@@ -12,15 +12,16 @@ class LoginAttemptTrackingTest extends TestCase
 
     public function test_successful_login_is_recorded(): void
     {
-        $user = User::factory()->create([
-            'email' => 'test@example.com',
+        $email = 'test-success-' . time() . '-' . rand(1000, 9999) . '@example.com';
+        $user = CentralUser::factory()->create([
+            'email' => $email,
             'password' => bcrypt('TestPassword123!'),
         ]);
 
         $this->assertDatabaseCount('login_attempts', 0);
 
         $response = $this->postJson('/api/v1/login', [
-            'email' => 'test@example.com',
+            'email' => $email,
             'password' => 'TestPassword123!',
         ]);
 
@@ -28,7 +29,7 @@ class LoginAttemptTrackingTest extends TestCase
 
         $this->assertDatabaseCount('login_attempts', 1);
         $this->assertDatabaseHas('login_attempts', [
-            'email' => 'test@example.com',
+            'email' => $email,
             'success' => true,
             'user_id' => $user->id,
         ]);
@@ -78,7 +79,7 @@ class LoginAttemptTrackingTest extends TestCase
             'password' => 'wrongpassword',
         ]);
 
-        $response->assertStatus(423) // 423 Locked
+        $response->assertStatus(429) // 429 Too Many Requests
             ->assertJsonStructure([
                 'success',
                 'message',
@@ -99,22 +100,23 @@ class LoginAttemptTrackingTest extends TestCase
 
     public function test_successful_login_after_failed_attempts(): void
     {
-        $user = User::factory()->create([
-            'email' => 'test@example.com',
+        $email = 'test-after-failed-' . time() . '-' . rand(1000, 9999) . '@example.com';
+        $user = CentralUser::factory()->create([
+            'email' => $email,
             'password' => bcrypt('TestPassword123!'),
         ]);
 
         // Make 2 failed attempts
         for ($i = 0; $i < 2; $i++) {
             $this->postJson('/api/v1/login', [
-                'email' => 'test@example.com',
+                'email' => $email,
                 'password' => 'wrongpassword',
             ])->assertStatus(422);
         }
 
         // Successful login should work and be recorded
         $response = $this->postJson('/api/v1/login', [
-            'email' => 'test@example.com',
+            'email' => $email,
             'password' => 'TestPassword123!',
         ]);
 
@@ -124,12 +126,12 @@ class LoginAttemptTrackingTest extends TestCase
 
         // Check that we have both failed and successful attempts
         $this->assertDatabaseHas('login_attempts', [
-            'email' => 'test@example.com',
+            'email' => $email,
             'success' => false,
         ]);
 
         $this->assertDatabaseHas('login_attempts', [
-            'email' => 'test@example.com',
+            'email' => $email,
             'success' => true,
             'user_id' => $user->id,
         ]);
@@ -155,6 +157,6 @@ class LoginAttemptTrackingTest extends TestCase
             'password' => 'wrongpassword',
         ]);
 
-        $response->assertStatus(423);
+        $response->assertStatus(429);
     }
 }

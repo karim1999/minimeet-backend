@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Central;
 
-use App\Models\User;
+use App\Models\Central\CentralUser;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
@@ -13,14 +13,15 @@ class BasicAuthTest extends TestCase
     public function test_central_user_can_login_simple(): void
     {
         // Create user directly
-        $user = User::create([
+        $email = 'simple-' . uniqid() . '@test.com';
+        $user = CentralUser::create([
             'name' => 'Test User',
-            'email' => 'simple@test.com',
+            'email' => $email,
             'password' => bcrypt('password123'),
         ]);
 
-        $response = $this->postJson('http://localhost/api/v1/login', [
-            'email' => 'simple@test.com',
+        $response = $this->postJson('/api/v1/login', [
+            'email' => $email,
             'password' => 'password123',
         ]);
 
@@ -34,7 +35,7 @@ class BasicAuthTest extends TestCase
 
     public function test_routes_are_working(): void
     {
-        $response = $this->postJson('http://localhost/api/v1/login', [
+        $response = $this->postJson('/api/v1/login', [
             'email' => 'nonexistent@test.com',
             'password' => 'wrong',
         ]);

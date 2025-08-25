@@ -48,6 +48,10 @@ return [
             'driver' => 'sanctum',
             'provider' => 'tenant_users',
         ],
+        'tenant_sanctum' => [
+            'driver' => 'sanctum',
+            'provider' => 'tenant_users',
+        ],
         'central_sanctum' => [
             'driver' => 'sanctum',
             'provider' => 'central_users',
@@ -74,11 +78,11 @@ return [
     'providers' => [
         'central_users' => [
             'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', App\Models\User::class),
+            'model' => App\Models\Central\CentralUser::class,
         ],
         'tenant_users' => [
             'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', App\Models\User::class),
+            'model' => App\Models\Tenant\TenantUser::class,
         ],
 
         // Legacy provider for compatibility

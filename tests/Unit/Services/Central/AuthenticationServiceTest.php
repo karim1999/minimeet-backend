@@ -3,7 +3,7 @@
 namespace Tests\Unit\Services\Central;
 
 use App\Logging\Central\AuthenticationLogger;
-use App\Models\User;
+use App\Models\Central\CentralUser;
 use App\Services\Central\AuthenticationService;
 use App\Services\Central\LoginAttemptService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -70,12 +70,13 @@ class AuthenticationServiceTest extends TestCase
     public function test_verify_credentials_returns_true_for_valid_credentials(): void
     {
         // Create a real user with known credentials
-        $user = User::factory()->create([
-            'email' => 'test@example.com',
+        $email = 'auth-test-valid-' . time() . '@example.com';
+        $user = CentralUser::factory()->create([
+            'email' => $email,
             'password' => Hash::make('password123'),
         ]);
 
-        $result = $this->service->verifyCredentials('test@example.com', 'password123');
+        $result = $this->service->verifyCredentials($email, 'password123');
 
         $this->assertTrue($result);
     }
@@ -83,12 +84,13 @@ class AuthenticationServiceTest extends TestCase
     public function test_verify_credentials_returns_false_for_invalid_credentials(): void
     {
         // Create a real user with known credentials
-        $user = User::factory()->create([
-            'email' => 'test@example.com',
+        $email = 'auth-test-invalid-' . time() . '@example.com';
+        $user = CentralUser::factory()->create([
+            'email' => $email,
             'password' => Hash::make('password123'),
         ]);
 
-        $result = $this->service->verifyCredentials('test@example.com', 'wrongpassword');
+        $result = $this->service->verifyCredentials($email, 'wrongpassword');
 
         $this->assertFalse($result);
     }

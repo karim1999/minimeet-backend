@@ -36,11 +36,21 @@ return [
 
         'database' => [
             'driver' => 'database',
-            'connection' => env('DB_QUEUE_CONNECTION'),
+            'connection' => 'central', // Force database queue to use central connection
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => env('DB_QUEUE', 'default'),
             'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 90),
             'after_commit' => false,
+        ],
+
+        'central' => [
+            'driver' => 'database',
+            'connection' => 'central',
+            'table' => 'jobs',
+            'queue' => 'central',
+            'retry_after' => 90,
+            'after_commit' => false,
+            'central' => true, // Mark as central queue
         ],
 
         'beanstalkd' => [

@@ -64,5 +64,22 @@ class AppServiceProvider extends ServiceProvider
                 ? Limit::perMinute(100)->by($request->user()->id)
                 : Limit::perMinute(20)->by($request->ip());
         });
+
+        // Sanctum API rate limiting for CentralUser
+        RateLimiter::for('App\Models\Central\CentralUser::api', function (Request $request) {
+            return Limit::perMinute(100)->by($request->user()->id ?? $request->ip());
+        });
+
+        // Sanctum API rate limiting for TenantUser
+        RateLimiter::for('App\Models\Tenant\TenantUser::api', function (Request $request) {
+            return Limit::perMinute(100)->by($request->user()->id ?? $request->ip());
+        });
+
+        // Default api rate limiter for any other models
+        RateLimiter::for('api', function (Request $request) {
+            return $request->user()
+                ? Limit::perMinute(100)->by($request->user()->id)
+                : Limit::perMinute(20)->by($request->ip());
+        });
     }
 }

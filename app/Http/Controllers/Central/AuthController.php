@@ -31,7 +31,7 @@ class AuthController extends Controller
                 return ApiResponse::error(
                     $result['message'],
                     ['email' => ['Account temporarily locked due to multiple failed attempts.']],
-                    423,
+                    429,
                     'AUTH_LOCKED_OUT',
                     ['lockout_seconds_remaining' => $result['lockout_seconds_remaining']]
                 );
@@ -53,6 +53,19 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
+        // Handle API token revocation
+        if ($request->user() && $request->user()->currentAccessToken()) {
+            // This is an API token request, revoke the current token
+            $result = $this->tokenService->revokeCurrentToken($request->user());
+            
+            if (!$result['success']) {
+                return ApiResponse::error($result['message']);
+            }
+            
+            return ApiResponse::success($result['message']);
+        }
+        
+        // Handle session logout
         $this->sessionService->invalidateSession($request);
 
         return ApiResponse::success('Logged out successfully');
@@ -114,10 +127,11 @@ class AuthController extends Controller
         $user = $request->user();
         $tokens = $this->tokenService->listUserTokens($user);
 
-        return ApiResponse::collection(
-            AuthTokenResource::collection($tokens),
-            $tokens->count(),
-            'Tokens retrieved successfully'
+        return ApiResponse::success(
+            'Tokens retrieved successfully',
+            ['tokens' => AuthTokenResource::collection($tokens)],
+            200,
+            ['total_count' => $tokens->count()]
         );
     }
 

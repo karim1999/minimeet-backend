@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Central;
 
-use App\Models\User;
+use App\Models\Central\CentralUser;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
@@ -10,14 +10,14 @@ class TokenAuthenticationTest extends TestCase
 {
     use DatabaseTransactions;
 
-    private User $user;
+    private CentralUser $user;
 
     public function setUp(): void
     {
         parent::setUp();
 
-        $this->user = User::factory()->create([
-            'email' => 'token-test@example.com',
+        $this->user = CentralUser::factory()->create([
+            'email' => 'token-test-' . uniqid() . '@example.com',
             'password' => bcrypt('TestPassword123!'),
         ]);
     }
@@ -76,13 +76,15 @@ class TokenAuthenticationTest extends TestCase
                 'success',
                 'message',
                 'data' => [
-                    '*' => [
-                        'id',
-                        'name',
-                        'abilities',
-                        'last_used_at',
-                        'expires_at',
-                        'created_at',
+                    'tokens' => [
+                        '*' => [
+                            'id',
+                            'name',
+                            'abilities',
+                            'last_used_at',
+                            'expires_at',
+                            'created_at',
+                        ],
                     ],
                 ],
                 'meta' => ['timestamp', 'version', 'total_count'],
