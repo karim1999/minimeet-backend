@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Tenant;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\ApiController;
+use App\Http\Controllers\Traits\HandlesExceptions;
 use App\Http\Requests\Tenant\ForgotPasswordRequest;
 use App\Http\Requests\Tenant\LoginRequest;
 use App\Http\Requests\Tenant\RegisterRequest;
@@ -15,15 +16,17 @@ use App\Services\Tenant\TenantAuthenticationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class AuthController extends Controller
+class AuthController extends ApiController
 {
+    use HandlesExceptions;
+
     public function __construct(
         private readonly TenantAuthenticationService $authService
     ) {}
 
     public function register(RegisterRequest $request): JsonResponse
     {
-        try {
+        return $this->executeForApi(function () use ($request) {
             $result = $this->authService->register(
                 $request->validated(),
                 tenant('id'),
@@ -31,25 +34,16 @@ class AuthController extends Controller
                 $request->userAgent() ?? ''
             );
 
-            return ApiResponse::success(
-                'User registered successfully',
-                [
-                    'user' => new TenantUserResource($result['user']),
-                    'token' => $result['token']->plainTextToken,
-                ],
-                201
-            );
-        } catch (\Exception $e) {
-            return ApiResponse::error(
-                'Registration failed: '.$e->getMessage(),
-                500
-            );
-        }
+            return $this->respondCreated([
+                'user' => new TenantUserResource($result['user']),
+                'token' => $result['token']->plainTextToken,
+            ], 'User registered successfully');
+        }, 'registering tenant user');
     }
 
     public function login(LoginRequest $request): JsonResponse
     {
-        try {
+        return $this->executeForApi(function () use ($request) {
             $result = $this->authService->authenticate(
                 $request->only(['email', 'password']),
                 tenant('id'),
@@ -57,28 +51,20 @@ class AuthController extends Controller
                 $request->userAgent() ?? ''
             );
 
-            return ApiResponse::success(
-                'Login successful',
-                [
-                    'user' => new TenantUserResource($result['user']),
-                    'token' => $result['token']->plainTextToken,
-                ]
-            );
-        } catch (\Exception $e) {
-            return ApiResponse::error(
-                'Login failed: '.$e->getMessage(),
-                500
-            );
-        }
+            return $this->respondWithSuccess([
+                'user' => new TenantUserResource($result['user']),
+                'token' => $result['token']->plainTextToken,
+            ], 'Login successful');
+        }, 'authenticating tenant user');
     }
 
     public function logout(Request $request): JsonResponse
     {
-        try {
+        return $this->executeForApi(function () use ($request) {
             $user = $request->user();
 
             if (! $user) {
-                return ApiResponse::error('User not authenticated', 401);
+                return $this->respondUnauthorized('User not authenticated');
             }
 
             // Directly revoke the current token used for this request
@@ -86,21 +72,17 @@ class AuthController extends Controller
             if ($currentToken) {
                 $currentToken->delete();
             }
-            
+
             // Also revoke all user tokens to ensure complete logout
             $user->tokens()->delete();
 
             $this->authService->logout($user, tenant('id'));
 
-            return ApiResponse::success(
+            return $this->respondWithSuccess(
+                null,
                 'Logged out successfully'
             );
-        } catch (\Exception $e) {
-            return ApiResponse::error(
-                'Logout failed: '.$e->getMessage(),
-                500
-            );
-        }
+        }, 'logging out tenant user');
     }
 
     public function user(Request $request): JsonResponse

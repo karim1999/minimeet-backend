@@ -29,10 +29,12 @@
                                class="inline-flex items-center px-1 pt-1 text-sm font-medium text-white hover:text-blue-200 transition-colors duration-150 ease-in-out">
                                 Tenant Users
                             </a>
+                            @if(auth()->user() && auth()->user()->isSuperAdmin())
                             <a href="{{ route('admin.system-stats') }}" 
                                class="inline-flex items-center px-1 pt-1 text-sm font-medium text-white hover:text-blue-200 transition-colors duration-150 ease-in-out">
                                 System Stats
                             </a>
+                            @endif
                         </div>
                     </div>
                     

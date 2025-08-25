@@ -232,19 +232,84 @@ class TenantUserManagementService
     /**
      * Get user activities for a specific tenant user.
      */
-    public function getUserActivities(Tenant $tenant, TenantUser $user, int $limit = 50, int $days = 30): Collection
+    public function getUserActivities(Tenant $tenant, TenantUser $user, int $limit = 50, int $days = 30, ?string $actionFilter = null): Collection
     {
         tenancy()->initialize($tenant);
 
         try {
-            return TenantUserActivity::where('user_id', $user->id)
-                ->where('created_at', '>=', now()->subDays($days))
-                ->latest()
+            $query = TenantUserActivity::where('user_id', $user->id)
+                ->where('created_at', '>=', now()->subDays($days));
+
+            if ($actionFilter) {
+                $query->where('action', 'like', "%{$actionFilter}%");
+            }
+
+            return $query->latest()
                 ->take($limit)
                 ->get();
         } finally {
             tenancy()->end();
         }
+    }
+
+    /**
+     * Get user activity statistics.
+     */
+    public function getUserActivityStats(Tenant $tenant, TenantUser $user, int $days = 30): array
+    {
+        tenancy()->initialize($tenant);
+
+        try {
+            $totalActivities = TenantUserActivity::where('user_id', $user->id)
+                ->where('created_at', '>=', now()->subDays($days))
+                ->count();
+
+            $activitiesByAction = TenantUserActivity::where('user_id', $user->id)
+                ->where('created_at', '>=', now()->subDays($days))
+                ->selectRaw('action, COUNT(*) as count')
+                ->groupBy('action')
+                ->pluck('count', 'action')
+                ->toArray();
+
+            $lastActivity = TenantUserActivity::where('user_id', $user->id)
+                ->latest()
+                ->first();
+
+            return [
+                'total_activities' => $totalActivities,
+                'activities_by_action' => $activitiesByAction,
+                'last_activity' => $lastActivity ? $lastActivity->created_at : null,
+                'avg_daily_activities' => $days > 0 ? round($totalActivities / $days, 2) : 0,
+            ];
+        } finally {
+            tenancy()->end();
+        }
+    }
+
+    /**
+     * Find a user across all tenants by user ID.
+     */
+    public function findUserAcrossTenants(string $userId): ?array
+    {
+        $tenants = Tenant::all();
+
+        foreach ($tenants as $tenant) {
+            tenancy()->initialize($tenant);
+
+            try {
+                $user = TenantUser::find($userId);
+                if ($user) {
+                    return [
+                        'tenant' => $tenant,
+                        'user' => $user,
+                    ];
+                }
+            } finally {
+                tenancy()->end();
+            }
+        }
+
+        return null;
     }
 
     /**

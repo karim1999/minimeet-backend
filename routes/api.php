@@ -33,30 +33,30 @@ foreach (config('tenancy.central_domains') as $domain) {
 
                 // Admin dashboard routes
                 Route::prefix('admin')->middleware('central_admin_auth')->group(function () {
-                    Route::post('login', [AdminAuthController::class, 'login'])->withoutMiddleware('central_admin_auth');
-                    Route::post('logout', [AdminAuthController::class, 'logout']);
-                    Route::get('dashboard', [AdminDashboardController::class, 'dashboard']);
-                    Route::get('health', [AdminDashboardController::class, 'health']);
-                    Route::get('activities', [AdminDashboardController::class, 'activities']);
-                    Route::get('metrics', [AdminDashboardController::class, 'metrics']);
-                    Route::get('export', [AdminDashboardController::class, 'export']);
+                    Route::post('login', [AdminAuthController::class, 'login'])->withoutMiddleware('central_admin_auth')->name('api.admin.login');
+                    Route::post('logout', [AdminAuthController::class, 'logout'])->name('api.admin.logout');
+                    Route::get('dashboard', [AdminDashboardController::class, 'dashboard'])->name('api.admin.dashboard');
+                    Route::get('health', [AdminDashboardController::class, 'health'])->name('api.admin.health');
+                    Route::get('activities', [AdminDashboardController::class, 'activities'])->name('api.admin.activities');
+                    Route::get('metrics', [AdminDashboardController::class, 'metrics'])->name('api.admin.metrics');
+                    Route::get('export', [AdminDashboardController::class, 'export'])->name('api.admin.export');
 
                     // Tenant User Management
-                    Route::prefix('tenant-users')->group(function () {
-                        Route::get('/', [TenantUserManagementController::class, 'index']);
-                        Route::get('/{id}', [TenantUserManagementController::class, 'show']);
-                        Route::post('/', [TenantUserManagementController::class, 'store']);
-                        Route::put('/{id}', [TenantUserManagementController::class, 'update']);
-                        Route::delete('/{id}', [TenantUserManagementController::class, 'destroy']);
-                        Route::post('/{id}/toggle-status', [TenantUserManagementController::class, 'toggleStatus']);
-                        Route::post('/{id}/reset-password', [TenantUserManagementController::class, 'resetPassword']);
-                        Route::get('/{id}/activity', [TenantUserManagementController::class, 'activity']);
+                    Route::prefix('tenant-users')->name('api.admin.tenant-users.')->group(function () {
+                        Route::get('/', [TenantUserManagementController::class, 'index'])->name('index');
+                        Route::get('/{id}', [TenantUserManagementController::class, 'show'])->name('show');
+                        Route::post('/', [TenantUserManagementController::class, 'store'])->name('store');
+                        Route::put('/{id}', [TenantUserManagementController::class, 'update'])->name('update');
+                        Route::delete('/{id}', [TenantUserManagementController::class, 'destroy'])->name('destroy');
+                        Route::post('/{id}/toggle-status', [TenantUserManagementController::class, 'toggleStatus'])->name('toggle-status');
+                        Route::post('/{id}/reset-password', [TenantUserManagementController::class, 'resetPassword'])->name('reset-password');
+                        Route::get('/{id}/activity', [TenantUserManagementController::class, 'activity'])->name('activity');
                     });
 
                     // Super Admin only routes
                     Route::middleware('super_admin_only')->group(function () {
-                        Route::get('users', [AdminDashboardController::class, 'users']);
-                        Route::get('system-stats', [AdminDashboardController::class, 'systemStats']);
+                        Route::get('users', [AdminDashboardController::class, 'users'])->name('api.admin.users');
+                        Route::get('system-stats', [AdminDashboardController::class, 'systemStats'])->name('api.admin.system-stats');
                     });
                 });
             });

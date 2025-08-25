@@ -45,22 +45,45 @@ Route::middleware([
             return view('tenant.users.index');
         });
 
+        // Profile management routes
+        Route::prefix('profile')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Tenant\ProfileController::class, 'profile']);
+            Route::put('/', [\App\Http\Controllers\Tenant\ProfileController::class, 'updateProfile']);
+            Route::post('/change-password', [\App\Http\Controllers\Tenant\ProfileController::class, 'changePassword']);
+            Route::get('/preferences', [\App\Http\Controllers\Tenant\ProfileController::class, 'preferences']);
+            Route::put('/preferences', [\App\Http\Controllers\Tenant\ProfileController::class, 'updatePreferences']);
+            Route::post('/avatar', [\App\Http\Controllers\Tenant\ProfileController::class, 'uploadAvatar']);
+            Route::delete('/avatar', [\App\Http\Controllers\Tenant\ProfileController::class, 'deleteAvatar']);
+        });
+
         // User management API routes
         Route::prefix('users')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Tenant\UserController::class, 'index']);
-            Route::get('/me', [\App\Http\Controllers\Tenant\UserController::class, 'profile']);
-            Route::put('/me', [\App\Http\Controllers\Tenant\UserController::class, 'updateProfile']);
-            Route::post('/change-password', [\App\Http\Controllers\Tenant\UserController::class, 'changePassword']);
+            Route::get('/', [\App\Http\Controllers\Tenant\TenantUserController::class, 'index']);
+            // Maintain backward compatibility for profile routes
+            Route::get('/me', [\App\Http\Controllers\Tenant\ProfileController::class, 'profile']);
+            Route::put('/me', [\App\Http\Controllers\Tenant\ProfileController::class, 'updateProfile']);
+            Route::post('/change-password', [\App\Http\Controllers\Tenant\ProfileController::class, 'changePassword']);
 
             // Admin-only user management
             Route::middleware('tenant_role:admin')->group(function () {
-                Route::get('/{id}', [\App\Http\Controllers\Tenant\UserController::class, 'show']);
-                Route::post('/', [\App\Http\Controllers\Tenant\UserController::class, 'store']);
-                Route::put('/{id}', [\App\Http\Controllers\Tenant\UserController::class, 'update']);
-                Route::delete('/{id}', [\App\Http\Controllers\Tenant\UserController::class, 'destroy']);
-                Route::post('/{id}/toggle-status', [\App\Http\Controllers\Tenant\UserController::class, 'toggleStatus']);
-                Route::get('/{id}/activity', [\App\Http\Controllers\Tenant\UserController::class, 'activity']);
+                Route::get('/{id}', [\App\Http\Controllers\Tenant\TenantUserController::class, 'show']);
+                Route::post('/', [\App\Http\Controllers\Tenant\TenantUserController::class, 'store']);
+                Route::put('/{id}', [\App\Http\Controllers\Tenant\TenantUserController::class, 'update']);
+                Route::delete('/{id}', [\App\Http\Controllers\Tenant\TenantUserController::class, 'destroy']);
+                Route::post('/{id}/toggle-status', [\App\Http\Controllers\Tenant\TenantUserController::class, 'toggleStatus']);
+                
+                // User activity routes
+                Route::get('/{id}/activity', [\App\Http\Controllers\Tenant\UserActivityController::class, 'activity']);
+                Route::get('/{id}/activity-stats', [\App\Http\Controllers\Tenant\UserActivityController::class, 'activityStats']);
             });
+        });
+
+        // Activity management routes
+        Route::prefix('activities')->group(function () {
+            Route::get('/my', [\App\Http\Controllers\Tenant\UserActivityController::class, 'myActivity']);
+            Route::get('/tenant', [\App\Http\Controllers\Tenant\UserActivityController::class, 'tenantActivity']);
+            Route::get('/types', [\App\Http\Controllers\Tenant\UserActivityController::class, 'activityTypes']);
+            Route::post('/log', [\App\Http\Controllers\Tenant\UserActivityController::class, 'logActivity']);
         });
     });
 });

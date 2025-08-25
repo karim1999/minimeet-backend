@@ -2,15 +2,18 @@
 
 namespace App\Http\Controllers\Central;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\ApiController;
+use App\Http\Controllers\Traits\HandlesExceptions;
 use App\Http\Responses\ApiResponse;
 use App\Services\Central\AdminDashboardService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
-class AdminDashboardController extends Controller
+class AdminDashboardController extends ApiController
 {
+    use HandlesExceptions;
+
     public function __construct(
         private readonly AdminDashboardService $dashboardService
     ) {}
@@ -183,6 +186,8 @@ class AdminDashboardController extends Controller
 
     /**
      * Export dashboard data as CSV.
+     *
+     * @deprecated Use AdminExportController instead
      */
     public function export(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
     {

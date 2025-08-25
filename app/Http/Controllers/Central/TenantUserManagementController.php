@@ -11,6 +11,7 @@ use App\Http\Responses\ApiResponse;
 use App\Models\Tenant;
 use App\Services\Central\TenantUserManagementService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -75,26 +76,59 @@ class TenantUserManagementController extends Controller
     /**
      * Get detailed information about a specific tenant user.
      */
-    public function show(string $tenantId, string $userId): JsonResponse
+    public function show(string $id): JsonResponse|View
     {
-        $tenant = Tenant::findOrFail($tenantId);
-        $user = $this->userManagementService->getTenantUser($tenant, $userId);
-
-        if (! $user) {
-            return ApiResponse::error('User not found', [], 404);
+        // Parse tenant and user ID - can be tenant_id:user_id or just user_id
+        if (str_contains($id, ':')) {
+            [$tenantId, $userId] = explode(':', $id, 2);
+            $tenant = Tenant::findOrFail($tenantId);
+            $user = $this->userManagementService->getTenantUser($tenant, $userId);
+        } else {
+            // Legacy support - find user by ID across tenants
+            $userWithTenant = $this->userManagementService->findUserAcrossTenants($id);
+            if (! $userWithTenant) {
+                if (request()->expectsJson()) {
+                    return ApiResponse::error('User not found', [], 404);
+                }
+                abort(404, 'User not found');
+            }
+            $tenant = $userWithTenant['tenant'];
+            $user = $userWithTenant['user'];
         }
 
-        return ApiResponse::success(
-            'Tenant user retrieved successfully',
-            ['user' => new TenantUserResource($user)]
-        );
+        if (! $user) {
+            if (request()->expectsJson()) {
+                return ApiResponse::error('User not found', [], 404);
+            }
+            abort(404, 'User not found');
+        }
+
+        if (request()->expectsJson()) {
+            return ApiResponse::success(
+                'Tenant user retrieved successfully',
+                ['user' => new TenantUserResource($user)]
+            );
+        }
+
+        // Web view
+        return view('admin.tenant-users.show', compact('user', 'tenant'));
     }
 
     /**
      * Create a new user in a tenant.
      */
-    public function store(CreateTenantUserRequest $request, string $tenantId): JsonResponse
+    public function store(CreateTenantUserRequest $request): JsonResponse|RedirectResponse
     {
+        $tenantId = $request->input('tenant_id');
+
+        if (! $tenantId) {
+            if ($request->expectsJson()) {
+                return ApiResponse::error('Tenant ID is required', [], 422);
+            }
+
+            return back()->withErrors(['tenant_id' => 'Tenant is required']);
+        }
+
         $tenant = Tenant::findOrFail($tenantId);
 
         try {
@@ -103,29 +137,58 @@ class TenantUserManagementController extends Controller
                 $request->validated()
             );
 
-            return ApiResponse::created(
-                'Tenant user created successfully',
-                ['user' => new TenantUserResource($user)]
-            );
+            if ($request->expectsJson()) {
+                return ApiResponse::created(
+                    'Tenant user created successfully',
+                    ['user' => new TenantUserResource($user)]
+                );
+            }
+
+            return redirect()->route('admin.tenant-users.show', ['id' => $tenant->id.':'.$user->id])
+                ->with('success', 'User created successfully');
         } catch (\Exception $e) {
-            return ApiResponse::error(
-                'Failed to create tenant user',
-                ['error' => $e->getMessage()],
-                422
-            );
+            if ($request->expectsJson()) {
+                return ApiResponse::error(
+                    'Failed to create tenant user',
+                    ['error' => $e->getMessage()],
+                    422
+                );
+            }
+
+            return back()->withErrors(['error' => $e->getMessage()])->withInput();
         }
     }
 
     /**
      * Update a tenant user.
      */
-    public function update(UpdateTenantUserRequest $request, string $tenantId, string $userId): JsonResponse
+    public function update(UpdateTenantUserRequest $request, string $id): JsonResponse|RedirectResponse
     {
-        $tenant = Tenant::findOrFail($tenantId);
-        $user = $this->userManagementService->getTenantUser($tenant, $userId);
+        // Parse tenant and user ID
+        if (str_contains($id, ':')) {
+            [$tenantId, $userId] = explode(':', $id, 2);
+            $tenant = Tenant::findOrFail($tenantId);
+            $user = $this->userManagementService->getTenantUser($tenant, $userId);
+        } else {
+            // Legacy support - find user by ID across tenants
+            $userWithTenant = $this->userManagementService->findUserAcrossTenants($id);
+            if (! $userWithTenant) {
+                if ($request->expectsJson()) {
+                    return ApiResponse::error('User not found', [], 404);
+                }
+
+                return back()->withErrors(['error' => 'User not found']);
+            }
+            $tenant = $userWithTenant['tenant'];
+            $user = $userWithTenant['user'];
+        }
 
         if (! $user) {
-            return ApiResponse::error('User not found', [], 404);
+            if ($request->expectsJson()) {
+                return ApiResponse::error('User not found', [], 404);
+            }
+
+            return back()->withErrors(['error' => 'User not found']);
         }
 
         try {
@@ -135,46 +198,84 @@ class TenantUserManagementController extends Controller
                 $request->validated()
             );
 
-            return ApiResponse::success(
-                'Tenant user updated successfully',
-                ['user' => new TenantUserResource($updatedUser)]
-            );
+            if ($request->expectsJson()) {
+                return ApiResponse::success(
+                    'Tenant user updated successfully',
+                    ['user' => new TenantUserResource($updatedUser)]
+                );
+            }
+
+            return redirect()->route('admin.tenant-users.show', ['id' => $tenant->id.':'.$updatedUser->id])
+                ->with('success', 'User updated successfully');
         } catch (\Exception $e) {
-            return ApiResponse::error(
-                'Failed to update tenant user',
-                ['error' => $e->getMessage()],
-                422
-            );
+            if ($request->expectsJson()) {
+                return ApiResponse::error(
+                    'Failed to update tenant user',
+                    ['error' => $e->getMessage()],
+                    422
+                );
+            }
+
+            return back()->withErrors(['error' => $e->getMessage()])->withInput();
         }
     }
 
     /**
      * Delete a tenant user.
      */
-    public function destroy(string $tenantId, string $userId): JsonResponse
+    public function destroy(string $id): JsonResponse|RedirectResponse
     {
-        $tenant = Tenant::findOrFail($tenantId);
-        $user = $this->userManagementService->getTenantUser($tenant, $userId);
+        // Parse tenant and user ID
+        if (str_contains($id, ':')) {
+            [$tenantId, $userId] = explode(':', $id, 2);
+            $tenant = Tenant::findOrFail($tenantId);
+            $user = $this->userManagementService->getTenantUser($tenant, $userId);
+        } else {
+            // Legacy support - find user by ID across tenants
+            $userWithTenant = $this->userManagementService->findUserAcrossTenants($id);
+            if (! $userWithTenant) {
+                if (request()->expectsJson()) {
+                    return ApiResponse::error('User not found', [], 404);
+                }
+
+                return back()->withErrors(['error' => 'User not found']);
+            }
+            $tenant = $userWithTenant['tenant'];
+            $user = $userWithTenant['user'];
+        }
 
         if (! $user) {
-            return ApiResponse::error('User not found', [], 404);
+            if (request()->expectsJson()) {
+                return ApiResponse::error('User not found', [], 404);
+            }
+
+            return back()->withErrors(['error' => 'User not found']);
         }
 
         try {
             $this->userManagementService->deleteTenantUser($tenant, $user);
 
-            return ApiResponse::success('Tenant user deleted successfully');
+            if (request()->expectsJson()) {
+                return ApiResponse::success('Tenant user deleted successfully');
+            }
+
+            return redirect()->route('admin.tenant-users.index')
+                ->with('success', 'User deleted successfully');
         } catch (\Exception $e) {
-            return ApiResponse::error(
-                'Failed to delete tenant user',
-                ['error' => $e->getMessage()],
-                422
-            );
+            if (request()->expectsJson()) {
+                return ApiResponse::error(
+                    'Failed to delete tenant user',
+                    ['error' => $e->getMessage()],
+                    422
+                );
+            }
+
+            return back()->withErrors(['error' => $e->getMessage()]);
         }
     }
 
     /**
-     * Suspend a tenant user.
+     * Suspend a tenant user (API endpoint, not used by web routes).
      */
     public function suspend(Request $request, string $tenantId, string $userId): JsonResponse
     {
@@ -210,7 +311,7 @@ class TenantUserManagementController extends Controller
     }
 
     /**
-     * Activate a tenant user.
+     * Activate a tenant user (API endpoint, not used by web routes).
      */
     public function activate(Request $request, string $tenantId, string $userId): JsonResponse
     {
@@ -282,6 +383,183 @@ class TenantUserManagementController extends Controller
             'Tenant user statistics retrieved successfully',
             ['statistics' => $stats]
         );
+    }
+
+    /**
+     * Show form to create a new tenant user.
+     */
+    public function create(Request $request): View
+    {
+        $request->validate([
+            'tenant_id' => ['nullable', 'string', 'exists:tenants,id'],
+        ]);
+
+        $tenants = Tenant::all();
+        $selectedTenant = null;
+
+        if ($tenantId = $request->input('tenant_id')) {
+            $selectedTenant = Tenant::findOrFail($tenantId);
+        }
+
+        $roles = [
+            'owner' => 'Owner',
+            'admin' => 'Administrator',
+            'manager' => 'Manager',
+            'member' => 'Member',
+        ];
+
+        return view('admin.tenant-users.create', compact('tenants', 'selectedTenant', 'roles'));
+    }
+
+    /**
+     * Show form to edit a tenant user.
+     */
+    public function edit(string $id): View
+    {
+        // Find user across all tenants - the ID should be in format tenant_id:user_id or just user_id
+        if (str_contains($id, ':')) {
+            [$tenantId, $userId] = explode(':', $id, 2);
+        } else {
+            // Legacy support - find user by ID across tenants
+            $userWithTenant = $this->userManagementService->findUserAcrossTenants($id);
+            if (! $userWithTenant) {
+                abort(404, 'User not found');
+            }
+            $tenant = $userWithTenant['tenant'];
+            $user = $userWithTenant['user'];
+        }
+
+        if (! isset($user)) {
+            $tenant = Tenant::findOrFail($tenantId);
+            $user = $this->userManagementService->getTenantUser($tenant, $userId);
+            if (! $user) {
+                abort(404, 'User not found');
+            }
+        }
+
+        $roles = [
+            'owner' => 'Owner',
+            'admin' => 'Administrator',
+            'manager' => 'Manager',
+            'member' => 'Member',
+        ];
+
+        return view('admin.tenant-users.edit', compact('user', 'tenant', 'roles'));
+    }
+
+    /**
+     * Toggle user active/inactive status.
+     */
+    public function toggleStatus(Request $request, string $id): JsonResponse
+    {
+        // Parse tenant and user ID
+        if (str_contains($id, ':')) {
+            [$tenantId, $userId] = explode(':', $id, 2);
+        } else {
+            // Legacy support - find user by ID across tenants
+            $userWithTenant = $this->userManagementService->findUserAcrossTenants($id);
+            if (! $userWithTenant) {
+                return ApiResponse::error('User not found', [], 404);
+            }
+            $tenant = $userWithTenant['tenant'];
+            $user = $userWithTenant['user'];
+        }
+
+        if (! isset($user)) {
+            $tenant = Tenant::findOrFail($tenantId);
+            $user = $this->userManagementService->getTenantUser($tenant, $userId);
+            if (! $user) {
+                return ApiResponse::error('User not found', [], 404);
+            }
+        }
+
+        $request->validate([
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        try {
+            $newStatus = ! $user->is_active;
+
+            if ($newStatus) {
+                $this->userManagementService->activateUser($tenant, $user);
+                $message = 'User activated successfully';
+            } else {
+                $this->userManagementService->suspendUser(
+                    $tenant,
+                    $user,
+                    $request->input('reason', 'Status toggled by admin')
+                );
+                $message = 'User suspended successfully';
+            }
+
+            return ApiResponse::success(
+                $message,
+                [
+                    'user' => new TenantUserResource($user->fresh()),
+                    'new_status' => $newStatus,
+                ]
+            );
+        } catch (\Exception $e) {
+            return ApiResponse::error(
+                'Failed to toggle user status',
+                ['error' => $e->getMessage()],
+                422
+            );
+        }
+    }
+
+    /**
+     * Show user activity page.
+     */
+    public function activity(Request $request, string $id): View
+    {
+        // Parse tenant and user ID
+        if (str_contains($id, ':')) {
+            [$tenantId, $userId] = explode(':', $id, 2);
+        } else {
+            // Legacy support - find user by ID across tenants
+            $userWithTenant = $this->userManagementService->findUserAcrossTenants($id);
+            if (! $userWithTenant) {
+                abort(404, 'User not found');
+            }
+            $tenant = $userWithTenant['tenant'];
+            $user = $userWithTenant['user'];
+        }
+
+        if (! isset($user)) {
+            $tenant = Tenant::findOrFail($tenantId);
+            $user = $this->userManagementService->getTenantUser($tenant, $userId);
+            if (! $user) {
+                abort(404, 'User not found');
+            }
+        }
+
+        $request->validate([
+            'days' => ['integer', 'min:1', 'max:365'],
+            'action_filter' => ['nullable', 'string'],
+        ]);
+
+        $days = $request->input('days', 30);
+        $actionFilter = $request->input('action_filter');
+
+        $activities = $this->userManagementService->getUserActivities(
+            $tenant,
+            $user,
+            100, // Limit for web view
+            $days,
+            $actionFilter
+        );
+
+        $activityStats = $this->userManagementService->getUserActivityStats($tenant, $user, $days);
+
+        return view('admin.tenant-users.activity', compact(
+            'user',
+            'tenant',
+            'activities',
+            'activityStats',
+            'days',
+            'actionFilter'
+        ));
     }
 
     /**
